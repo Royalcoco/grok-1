@@ -1,0 +1,102 @@
+import os
+import random
+from PIL import Image, ImageDraw, ImageFont
+import qrcode
+from web3 import Web3
+import ipfshttpclient
+
+class CarrotImageGenerator:
+    def __init__(self, width=600, height=600):
+        self.width = width
+        self.height = height
+
+    def generate_carrot_image(self, output_path):
+        image = Image.new("RGBA", (self.width, self.height), (255, 255, 255, 255))
+        draw = ImageDraw.Draw(image)
+        rand = random.Random()
+
+        # Set random background color
+        background_color = (rand.randint(0, 255), rand.randint(0, 255), rand.randint(0, 255), 255)
+        draw.rectangle([0, 0, self.width, self.height], fill=background_color)
+
+        # Draw random carrot
+        for _ in range(5):  # Drawing 5 carrots for variety
+            self.draw_random_carrot(draw, rand)
+
+        # Add random text
+        text_color = (rand.randint(0, 255), rand.randint(0, 255), rand.randint(0, 255), 255)
+        font = ImageFont.truetype("arial.ttf", 20)
+        text = "Random Carrot"
+        text_x = rand.randint(0, self.width - 100)
+        text_y = rand.randint(0, self.height - 20)
+        draw.text((text_x, text_y), text, fill=text_color, font=font)
+
+        image.save(output_path)
+        print("Random Carrot image saved to", output_path)
+
+    def draw_random_carrot(self, draw, rand):
+        # Randomly determine the carrot's size and position
+        x0 = rand.randint(0, self.width - 100)
+        y0 = rand.randint(0, self.height - 100)
+        carrot_width = rand.randint(30, 100)
+        carrot_height = rand.randint(60, 200)
+
+        # Carrot body
+        carrot_color = (rand.randint(200, 255), rand.randint(100, 150), rand.randint(0, 50), 255)
+        draw.ellipse([x0, y0, x0 + carrot_width, y0 + carrot_height], fill=carrot_color)
+
+        # Carrot leaves
+        leaves_color = (rand.randint(0, 100), rand.randint(150, 255), rand.randint(0, 100), 255)
+        for _ in range(3):  # Drawing 3 leaves for each carrot
+            leaf_x0 = x0 + rand.randint(0, carrot_width)
+            leaf_y0 = y0 - rand.randint(20, 50)
+            leaf_x1 = leaf_x0 + rand.randint(-20, 20)
+            leaf_y1 = leaf_y0 - rand.randint(20, 50)
+            draw.line([leaf_x0, leaf_y0, leaf_x1, leaf_y1], fill=leaves_color, width=3)
+
+def upload_to_ipfs(file_path):
+    with ipfshttpclient.connect() as client:
+        res = client.add(file_path)
+        print("Upload to IPFS:", res['Hash'])
+        return res['Hash']
+
+def mint_nft(image_hash, contract_address, private_key, account_address):
+    w3 = Web3(Web3.HTTPProvider('https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID'))
+    w3.eth.default_account = account_address
+    contract_abi = [...]  # Replace with your contract's ABI
+    contract = w3.eth.contract(address=contract_address, abi=contract_abi)
+    tx = contract.functions.mintNFT(account_address, f"https://ipfs.io/ipfs/{image_hash}").buildTransaction({
+        'gas': 70000,
+        'gasPrice': w3.toWei('1', 'gwei'),
+        'nonce': w3.eth.getTransactionCount(account_address),
+    })
+
+    signed_tx = w3.eth.account.sign_transaction(tx, private_key)
+    tx_hash = w3.eth.sendRawTransaction(signed_tx.rawTransaction)
+    print(f"Mint NFT transaction sent with hash: {tx_hash.hex()}")
+
+def main():
+    # Configuration
+    output_path = "random_carrot.png"
+    contract_address = "0xYourContractAddress"
+    private_key = "0xYourPrivateKey"
+    account_address = "0xYourAccountAddress"
+
+    # Generate random carrot image
+    generator = CarrotImageGenerator()
+    generator.generate_carrot_image(output_path)
+
+    # Upload image to IPFS
+    ipfs_hash = upload_to_ipfs(output_path)
+
+    # Mint NFT on Ethereum
+    mint_nft(ipfs_hash, contract_address, private_key, account_address)
+
+if __name__ == "__main__":
+    main()
+
+The script generates a random carrot image, uploads it to IPFS, and mints an NFT on Ethereum. You need to replace the placeholders with your Infura project ID, contract address, contract ABI, private key, and account address.
+
+The script uses the ipfshttpclient library to upload the image to IPFS. You need to install the library by running pip install ipfshttpclient.
+
+The script uses the web3 library to interact with the Ethereum blockchain. You need to install the library by running pip install web3.
