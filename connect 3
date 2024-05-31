@@ -1,0 +1,15 @@
+// background.js
+chrome.runtime.onInstalled.addListener(() => {
+    console.log('Extension Installed');
+});
+
+// popup.js
+document.getElementById('generate').addEventListener('click', () => {
+    fetch('http://localhost:5000/generate-image')
+        .then(response => response.json())
+        .then(data => {
+            const img = document.createElement('img');
+            img.src = data.image_url;
+            document.getElementById('imageContainer').appendChild(img);
+        });
+});
