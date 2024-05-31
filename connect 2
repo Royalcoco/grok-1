@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>DALL-E Ethereum Interface</title>
+    <script src="popup.js"></script>
+</head>
+<body>
+    <h1>DALL-E Ethereum Interface</h1>
+    <button id="generate">Generate Image</button>
+    <div id="imageContainer"></div>
+</body>
+</html>
