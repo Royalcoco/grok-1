@@ -1,0 +1,9 @@
+import ipfshttpclient
+
+# Connect to IPFS
+client = ipfshttpclient.connect('/dns/localhost/tcp/5001/http')
+
+# Add the video to IPFS
+res = client.add('dieu_animation.mp4')
+ipfs_hash = res['Hash']
+print(f"IPFS Hash: {ipfs_hash}")
