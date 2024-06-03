@@ -1,0 +1,107 @@
+from web3 import Web3
+from solcx import compile_source
+
+# Connect to Ethereum node
+w3 = Web3(Web3.HTTPProvider('https://mainnet.infura.io/v3/YOUR_INFURA_PROJECT_ID'))
+
+# Solidity source code
+contract_source_code = '''
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+
+contract PantheonNFT is ERC721URIStorage, Ownable {
+    uint256 public tokenCounter;
+    mapping(uint256 => uint256) public tokenPrices;
+    mapping(uint256 => address) public tokenOwners;
+    mapping(uint256 => bool) public tokenOnSale;
+    mapping(uint256 => address[]) public tokenSigners;
+
+    event TokenPriceUpdated(uint256 tokenId, uint256 newPrice);
+    event TokenOnSale(uint256 tokenId, uint256 price);
+    event TokenSold(uint256 tokenId, address buyer, uint256 price);
+
+    constructor() ERC721("PantheonNFT", "PNFT") {
+        tokenCounter = 0;
+    }
+
+    function createNFT(string memory tokenURI, uint256 initialPrice) public onlyOwner returns (uint256) {
+        uint256 newItemId = tokenCounter;
+        _safeMint(msg.sender, newItemId);
+        _setTokenURI(newItemId, tokenURI);
+        tokenPrices[newItemId] = initialPrice;
+        tokenOwners[newItemId] = msg.sender;
+        tokenCounter += 1;
+        return newItemId;
+    }
+
+    function setForSale(uint256 tokenId, uint256 price) public {
+        require(ownerOf(tokenId) == msg.sender, "You are not the owner of this token");
+        tokenPrices[tokenId] = price;
+        tokenOnSale[tokenId] = true;
+        emit TokenOnSale(tokenId, price);
+    }
+
+    function signSale(uint256 tokenId) public {
+        require(tokenOnSale[tokenId], "Token is not for sale");
+        require(msg.sender != tokenOwners[tokenId], "Owner cannot sign the sale");
+
+        bool alreadySigned = false;
+        for (uint i = 0; i < tokenSigners[tokenId].length; i++) {
+            if (tokenSigners[tokenId][i] == msg.sender) {
+                alreadySigned = true;
+                break;
+            }
+        }
+
+        require(!alreadySigned, "You have already signed this sale");
+        tokenSigners[tokenId].push(msg.sender);
+
+        if (tokenSigners[tokenId].length >= 2) {
+            completeSale(tokenId);
+        }
+    }
+
+    function completeSale(uint256 tokenId) internal {
+        address buyer = msg.sender;
+        require(msg.value >= tokenPrices[tokenId], "Insufficient payment");
+
+        address owner = ownerOf(tokenId);
+        _transfer(owner, buyer, tokenId);
+        payable(owner).transfer(msg.value);
+
+        tokenPrices[tokenId] = tokenPrices[tokenId] * 2;
+        tokenOnSale[tokenId] = false;
+        tokenSigners ;
+
+        emit TokenSold(tokenId, buyer, msg.value);
+        emit TokenPriceUpdated(tokenId, tokenPrices[tokenId]);
+    }
+
+    function getTokenPrice(uint256 tokenId) public view returns (uint256) {
+        require(_exists(tokenId), "Token does not exist");
+        return tokenPrices[tokenId];
+    }
+}
+'''
+
+# Compile the contract
+compiled_sol = compile_source(contract_source_code)
+contract_interface = compiled_sol['<stdin>:PantheonNFT']
+
+# Deploy the contract
+w3.eth.default_account = w3.eth.accounts[0]
+PantheonNFT = w3.eth.contract(abi=contract_interface['abi'], bytecode=contract_interface['bin'])
+tx_hash = PantheonNFT.constructor().transact()
+tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+contract_address = tx_receipt.contractAddress
+print(f"Contract deployed at address: {contract_address}")
+
+# Create the NFT
+nft_contract = w3.eth.contract(address=contract_address, abi=contract_interface['abi'])
+token_uri = f"ipfs://{ipfs_hash}"
+initial_price = Web3.toWei(0.1, 'ether')  # Initial price of 0.1 ETH
+tx_hash = nft_contract.functions.createNFT(token_uri, initial_price).transact()
+w3.eth.wait_for_transaction_receipt(tx_hash)
+print(f"NFT created. Transaction hash: {tx_hash.hex()}")
