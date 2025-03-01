@@ -70,3 +70,34 @@ def main():
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     main()
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
+contract MetaLand is ERC721URIStorage {
+    uint256 public nextId;
+    address public owner;
+    IERC20 public metaToken;
+
+    mapping(uint256 => uint256) public landPrices;
+
+    constructor(address _metaToken) ERC721("MetaLand", "MLAND") {
+        owner = msg.sender;
+        metaToken = IERC20(_metaToken);
+    }
+
+    function mintLand(string memory metadataURI, uint256 price) public {
+        _safeMint(msg.sender, nextId);
+        _setTokenURI(nextId, metadataURI);
+        landPrices[nextId] = price;
+        nextId++;
+    }
+
+    function buyLand(uint256 landId) public {
+        require(landPrices[landId] > 0, "Land not for sale");
+        metaToken.transferFrom(msg.sender, ownerOf(landId), landPrices[landId]);
+        _transfer(ownerOf(landId), msg.sender, landId);
+    }
+}
